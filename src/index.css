@@ -42,7 +42,7 @@
     color: #000000 !important;
   }
 
-  header, nav, .print\\:hidden {
+  header, nav, .print\:hidden {
     display: none !important;
   }
 
