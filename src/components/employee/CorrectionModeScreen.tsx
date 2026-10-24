@@ -141,7 +141,7 @@ export const CorrectionModeScreen: React.FC<CorrectionModeScreenProps> = ({
                   <div className="flex flex-wrap items-center gap-2 pt-1">
                     <button
                       type="button"
-                      onClick={() => replaceWithCleanSample(doc.id, doc.type)}
+                      onClick={() => replaceWithCleanSample(doc.id, doc.type!)}
                       className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 rounded-xl transition-all active:scale-95"
                     >
                       <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
@@ -157,7 +157,7 @@ export const CorrectionModeScreen: React.FC<CorrectionModeScreenProps> = ({
                         className="hidden"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
-                          if (file) handleLocalUpload(doc.id, doc.type, file);
+                          if (file && doc.type) handleLocalUpload(doc.id, doc.type, file);
                         }}
                       />
                     </label>

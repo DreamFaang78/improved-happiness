@@ -35,18 +35,23 @@
   background: rgba(99, 102, 241, 0.8);
 }
 
-/* Print Styles for KYC Dossier PDF */
+/* Print Styles for KYC Dossier, Payslip, and Compliance Summary */
 @media print {
   body {
     background: #ffffff !important;
     color: #000000 !important;
   }
 
-  header, nav, .print\:hidden {
+  header,
+  nav,
+  aside,
+  .print\:hidden {
     display: none !important;
   }
 
-  #kyc-printable-dossier {
+  #kyc-printable-dossier,
+  #printable-payslip,
+  #printable-compliance-pack {
     box-shadow: none !important;
     border: none !important;
     padding: 0 !important;
@@ -54,4 +59,13 @@
     width: 100% !important;
     max-width: 100% !important;
   }
+}
+
+/* Mobile Safe Area utilities */
+.safe-area-pb {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 5rem);
+}
+
+.safe-area-pt {
+  padding-top: env(safe-area-inset-top, 0px);
 }

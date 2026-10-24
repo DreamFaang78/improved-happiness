@@ -13,7 +13,7 @@ export const AuditLogModal: React.FC<AuditLogModalProps> = ({ logs, onClose }) =
 
   const filteredLogs = logs.filter(log => {
     const matchesCategory = selectedCategory === 'ALL' || log.category === selectedCategory;
-    const matchesSearch = 
+    const matchesSearch =
       log.action.toLowerCase().includes(search.toLowerCase()) ||
       log.details.toLowerCase().includes(search.toLowerCase()) ||
       (log.candidateName && log.candidateName.toLowerCase().includes(search.toLowerCase())) ||
@@ -61,11 +61,10 @@ export const AuditLogModal: React.FC<AuditLogModalProps> = ({ logs, onClose }) =
                 key={cat}
                 type="button"
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-2.5 py-1.5 rounded-lg font-semibold transition-colors ${
-                  selectedCategory === cat 
-                    ? 'bg-indigo-600 text-white' 
+                className={`px-2.5 py-1.5 rounded-lg font-semibold transition-colors ${selectedCategory === cat
+                    ? 'bg-indigo-600 text-white'
                     : 'bg-slate-800 text-slate-400 hover:text-white'
-                }`}
+                  }`}
               >
                 {cat}
               </button>
@@ -81,8 +80,8 @@ export const AuditLogModal: React.FC<AuditLogModalProps> = ({ logs, onClose }) =
             </div>
           ) : (
             filteredLogs.map(log => (
-              <div 
-                key={log.id} 
+              <div
+                key={log.id}
                 className="bg-slate-800/80 border border-slate-750 hover:border-slate-700 p-3.5 rounded-xl text-xs space-y-1 transition-colors"
               >
                 <div className="flex items-center justify-between">

@@ -1,309 +1,349 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
-  CandidateRecord, 
-  CompanyConfig, 
-  AuditLogEntry, 
-  SimulatedNotification,
-  DocumentReviewStatus 
+  DemoRole, 
+  Employee, 
+  AttendanceRecord, 
+  PayrollRecord, 
+  StatutoryComplianceItem, 
+  DocumentItem, 
+  MonthlyCompliancePack, 
+  SystemConfig,
+  CandidateRecord
 } from './types';
-import { dataProvider } from './services/dataProvider';
-import { DemoBar } from './components/DemoBar';
-import { LandingHero } from './components/LandingHero';
+import { complianceStore } from './services/complianceStore';
+import { TopHeader } from './components/layout/TopHeader';
+import { BottomNav, NavTab } from './components/layout/BottomNav';
+import { Sidebar } from './components/layout/Sidebar';
+import { RoleSelectorModal } from './components/layout/RoleSelectorModal';
+import { MoreMenuModal } from './components/layout/MoreMenuModal';
+import { MobileDashboard } from './components/dashboard/MobileDashboard';
+import { EmployeeDirectory } from './components/employees/EmployeeDirectory';
+import { EmployeeModal } from './components/employees/EmployeeModal';
+import { AttendanceView } from './components/attendance/AttendanceView';
+import { PayrollView } from './components/payroll/PayrollView';
+import { ComplianceTracker } from './components/compliance/ComplianceTracker';
+import { DocumentCentre } from './components/documents/DocumentCentre';
+import { CompliancePackList } from './components/packs/CompliancePackList';
+import { CompliancePackCompiler } from './components/packs/CompliancePackCompiler';
+import { SystemSettings } from './components/settings/SystemSettings';
+import { SimulatedNotificationsDrawer } from './components/SimulatedNotificationsDrawer';
 import { PhoneFrame } from './components/PhoneFrame';
 import { EmployeePortal } from './components/employee/EmployeePortal';
-import { HrDashboard } from './components/hr/HrDashboard';
-import { CompanyModal } from './components/CompanyModal';
-import { PresenterNotes } from './components/PresenterNotes';
-import { GuidedTour } from './components/GuidedTour';
-import { SimulatedNotificationsDrawer } from './components/SimulatedNotificationsDrawer';
-import { ClosingRecapModal } from './components/ClosingRecapModal';
+import { triggerConfetti } from './utils/confetti';
 
 export const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'landing' | 'employee' | 'hr'>('landing');
-  const [candidates, setCandidates] = useState<CandidateRecord[]>([]);
-  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
-  const [notifications, setNotifications] = useState<SimulatedNotification[]>([]);
-  const [allCompanies, setAllCompanies] = useState<CompanyConfig[]>([]);
-  const [activeCompany, setActiveCompany] = useState<CompanyConfig>({
-    id: 'securewave',
-    name: 'SecureWave Projects Pvt. Ltd.',
-    tagline: 'Civil Engineering & Infrastructure Contractors',
-    brandColor: '#4f46e5'
-  });
-  const [userSubmission, setUserSubmission] = useState<CandidateRecord | null>(null);
+  const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
+  const [currentRole, setCurrentRole] = useState<DemoRole>('SUPER_ADMIN');
+  const [config, setConfig] = useState<SystemConfig>(complianceStore.getConfig());
+  const [employees, setEmployees] = useState<Employee[]>(complianceStore.getEmployees());
+  const [attendance, setAttendance] = useState<AttendanceRecord[]>(complianceStore.getAttendance());
+  const [payroll, setPayroll] = useState<PayrollRecord[]>(complianceStore.getPayroll());
+  const [complianceItems, setComplianceItems] = useState<StatutoryComplianceItem[]>(complianceStore.getComplianceItems());
+  const [documents, setDocuments] = useState<DocumentItem[]>(complianceStore.getDocuments());
+  const [packs, setPacks] = useState<MonthlyCompliancePack[]>(complianceStore.getPacks());
 
-  // Layout & Utility states
-  const [isPhoneFrame, setIsPhoneFrame] = useState(true);
-  const [showPresenterNotes, setShowPresenterNotes] = useState(false);
-  const [showGuidedTour, setShowGuidedTour] = useState(false);
-  const [showCompanyModal, setShowCompanyModal] = useState(false);
-  const [showNotificationsDrawer, setShowNotificationsDrawer] = useState(false);
-  const [showClosingRecap, setShowClosingRecap] = useState(false);
+  // Active Compiler Pack (if editing a specific 9-step pack)
+  const [activeCompilerPack, setActiveCompilerPack] = useState<MonthlyCompliancePack | null>(null);
 
-  // Load initial data from dataProvider
-  const refreshData = useCallback(async () => {
-    const [cands, logs, notifs, comps, activeComp] = await Promise.all([
-      dataProvider.getCandidates(),
-      dataProvider.getAuditLogs(),
-      dataProvider.getNotifications(),
-      dataProvider.getCompanies(),
-      dataProvider.getActiveCompany()
-    ]);
+  // Modals & Drawers
+  const [showRoleModal, setShowRoleModal] = useState(false);
+  const [showMoreModal, setShowMoreModal] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [showAddEmployeeModal, setShowAddEmployeeModal] = useState(false);
 
-    setCandidates(cands);
-    setAuditLogs(logs);
-    setNotifications(notifs);
-    setAllCompanies(comps);
-    setActiveCompany(activeComp);
-
-    // Look for user's own submission if any
-    const mySub = cands.find(c => c.isUserSubmission);
-    if (mySub) {
-      setUserSubmission(mySub);
-    }
+  // State sync from store
+  const refreshStoreState = useCallback(() => {
+    setCurrentRole(complianceStore.getRole());
+    setConfig(complianceStore.getConfig());
+    setEmployees(complianceStore.getEmployees());
+    setAttendance(complianceStore.getAttendance());
+    setPayroll(complianceStore.getPayroll());
+    setComplianceItems(complianceStore.getComplianceItems());
+    setDocuments(complianceStore.getDocuments());
+    setPacks(complianceStore.getPacks());
   }, []);
 
   useEffect(() => {
-    refreshData();
-    const unsubscribe = dataProvider.subscribe(() => {
-      refreshData();
+    refreshStoreState();
+    const unsub = complianceStore.subscribe(() => {
+      refreshStoreState();
     });
-    return unsubscribe;
-  }, [refreshData]);
+    return unsub;
+  }, [refreshStoreState]);
 
   // Handlers
-  const handleRoleChange = (role: 'employee' | 'hr') => {
-    setCurrentView(role);
+  const handleRoleSelect = (role: DemoRole) => {
+    complianceStore.setRole(role);
   };
 
-  const handleSelectCompany = async (company: CompanyConfig) => {
-    setActiveCompany(company);
-    await dataProvider.setActiveCompany(company);
-    await dataProvider.addAuditLog({
-      action: 'Active Company Switched',
-      details: `Demonstration entity updated to ${company.name}`,
-      performedBy: 'Demo Presenter',
-      category: 'SYSTEM'
-    });
+  const handleResetDemo = () => {
+    complianceStore.resetDemoData();
+    setActiveTab('dashboard');
+    setActiveCompilerPack(null);
+    triggerConfetti();
   };
 
-  const handleResetDemo = async () => {
-    await dataProvider.resetToSeed();
-    setUserSubmission(null);
-    setCurrentView('landing');
-    setShowClosingRecap(false);
-    await refreshData();
+  const handleCreateNewPack = () => {
+    const newPack: MonthlyCompliancePack = {
+      id: `pack-${Date.now()}`,
+      packCode: `MCP-2026-10-${Math.floor(100 + Math.random() * 900)}`,
+      company: config.companyName,
+      client: config.clients[0],
+      project: config.projects[0],
+      site: config.sites[0],
+      month: 'October',
+      year: 2026,
+      readinessPercentage: 25,
+      hrApproved: false,
+      accountsApproved: false,
+      siteApproved: false,
+      status: 'IN_PROGRESS',
+      createdAt: new Date().toISOString().substring(0, 10),
+      updatedAt: new Date().toISOString().substring(0, 10),
+      checklistItems: [
+        { id: 'item-1', title: 'EPFO Monthly Electronic Challan & Reconciliation', category: 'PF & ESI', mandatory: true, isUploaded: false, status: 'MISSING' },
+        { id: 'item-2', title: 'ESIC Contribution Statement with Payment Stamp', category: 'PF & ESI', mandatory: true, isUploaded: false, status: 'MISSING' },
+        { id: 'item-3', title: 'Form B Wage Register Signed by Principal Employer', category: 'Wages', mandatory: true, isUploaded: false, status: 'MISSING' },
+        { id: 'item-4', title: 'Bank Advice Summary for NEFT Direct Salary Transfer', category: 'Wages', mandatory: true, isUploaded: false, status: 'MISSING' },
+        { id: 'item-5', title: 'Form D Attendance Muster Roll Signed by Site Incharge', category: 'Attendance', mandatory: true, isUploaded: true, fileName: 'Site_Muster_Oct2026.pdf', status: 'COMPLETED' },
+        { id: 'item-6', title: 'Labour Welfare Fund (LWF) Remittance Receipt', category: 'Statutory', mandatory: true, isUploaded: false, status: 'MISSING' },
+        { id: 'item-7', title: 'Weekly Scaffold & Height Work Safety Permit Certificate', category: 'Safety', mandatory: false, isUploaded: true, fileName: 'Scaffold_Log_Week3.pdf', status: 'COMPLETED' }
+      ]
+    };
+    complianceStore.savePack(newPack);
+    setActiveCompilerPack(newPack);
+    setActiveTab('packs');
   };
 
-  const handleSubmissionSuccess = async (submission: CandidateRecord) => {
-    setUserSubmission(submission);
-    await dataProvider.saveCandidate(submission);
-
-    // Add Audit Log
-    await dataProvider.addAuditLog({
-      candidateId: submission.id,
-      candidateName: submission.fullName,
-      action: 'KYC Dossier Submitted',
-      details: `Candidate completed all 4 onboarding steps with PAN ${submission.panNumber} and bank IFSC ${submission.ifscCode}`,
-      performedBy: `Candidate (${submission.fullName})`,
-      category: 'FORM'
-    });
-
-    // Add Simulated Notification
-    await dataProvider.addNotification({
-      channel: 'WHATSAPP',
-      recipientName: 'HR Operations',
-      recipientPhone: '90000 00000',
-      title: `New KYC Submission: ${submission.fullName}`,
-      message: `${submission.fullName} has completed onboarding form and uploaded all statutory proofs. Waiting for HR review.`,
-      link: `/review?id=${submission.id}`,
+  // Simulated notifications list
+  const simulatedNotifications = [
+    {
+      id: 'notif-1',
+      timestamp: '10 mins ago',
+      channel: 'WHATSAPP' as const,
+      recipientName: 'Harish R. (Site Incharge)',
+      recipientPhone: '90000 00001',
+      title: 'Site Attendance Muster Reminder',
+      message: 'Please complete and lock the attendance muster for Cyber City Metro Station before 6:00 PM.',
       isRead: false
-    });
-  };
-
-  const handleUpdateDocumentStatus = async (
-    candidateId: string, 
-    docId: string, 
-    status: DocumentReviewStatus, 
-    reason?: string
-  ): Promise<CandidateRecord> => {
-    const updated = await dataProvider.updateDocumentStatus(candidateId, docId, status, reason);
-    if (updated.isUserSubmission) {
-      setUserSubmission(updated);
+    },
+    {
+      id: 'notif-2',
+      timestamp: '2 hours ago',
+      channel: 'SMS' as const,
+      recipientName: 'Sunil K. (Accounts)',
+      recipientPhone: '90000 00007',
+      title: 'October Payroll Review Ready',
+      message: 'Wages calculation for 10 staff members is ready for your approval.',
+      isRead: true
     }
-    await refreshData();
-    return updated;
-  };
-
-  const handleApproveAllDocuments = async (candidateId: string): Promise<void> => {
-    const target = await dataProvider.getCandidateById(candidateId);
-    if (!target) return;
-
-    for (const doc of target.documents) {
-      await dataProvider.updateDocumentStatus(candidateId, doc.id, 'APPROVED');
-    }
-    await refreshData();
-  };
-
-  const handleAddCandidate = async (cand: CandidateRecord) => {
-    await dataProvider.saveCandidate(cand);
-    await dataProvider.addAuditLog({
-      candidateId: cand.id,
-      candidateName: cand.fullName,
-      action: 'New Candidate Invited',
-      details: `Generated joining invite for role: ${cand.role}`,
-      performedBy: 'HR Admin',
-      category: 'INVITE'
-    });
-    await dataProvider.addNotification({
-      channel: 'WHATSAPP',
-      recipientName: cand.fullName,
-      recipientPhone: cand.mobileNumber,
-      title: 'Joining Invite Dispatched',
-      message: `Welcome to ${cand.companyName}! Please complete your KYC via: https://portal.demo/join?token=sw-${cand.id}`,
-      isRead: false
-    });
-    await refreshData();
-  };
-
-  const handleAddCandidatesBatch = async (batch: CandidateRecord[]) => {
-    for (const cand of batch) {
-      await dataProvider.saveCandidate(cand);
-    }
-    await dataProvider.addAuditLog({
-      action: 'Bulk CSV Candidate Import',
-      details: `Imported and dispatched invites for ${batch.length} candidates`,
-      performedBy: 'HR Admin (Bulk Operations)',
-      category: 'INVITE'
-    });
-    await refreshData();
-  };
+  ];
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
-      {/* Demo Sticky Bar */}
-      <DemoBar
-        currentRole={currentView === 'landing' ? 'employee' : currentView}
-        onRoleChange={handleRoleChange}
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans antialiased">
+      {/* Top Header */}
+      <TopHeader
+        currentRole={currentRole}
+        onOpenRoleSelector={() => setShowRoleModal(true)}
         onResetDemo={handleResetDemo}
-        onAutofill={() => {
-          // If in employee view, we trigger autofill through employee portal
-          if (currentView !== 'employee') {
-            setCurrentView('employee');
-          }
-        }}
-        activeCompany={activeCompany}
-        allCompanies={allCompanies}
-        onSelectCompany={handleSelectCompany}
-        onOpenCompanyModal={() => setShowCompanyModal(true)}
-        isPhoneFrame={isPhoneFrame}
-        onTogglePhoneFrame={() => setIsPhoneFrame(!isPhoneFrame)}
-        showPresenterNotes={showPresenterNotes}
-        onTogglePresenterNotes={() => setShowPresenterNotes(!showPresenterNotes)}
-        onStartTour={() => setShowGuidedTour(true)}
-        notifications={notifications}
-        onOpenNotifications={() => setShowNotificationsDrawer(true)}
-        onOpenClosingRecap={() => setShowClosingRecap(true)}
+        onOpenNotifications={() => setShowNotifications(true)}
+        companyName={config.companyName}
       />
 
-      {/* Main View Router */}
-      <main className="flex-1 flex flex-col overflow-hidden">
-        {currentView === 'landing' && (
-          <LandingHero
-            activeCompany={activeCompany}
-            onUpdateCompany={handleSelectCompany}
-            onStartEmployee={() => setCurrentView('employee')}
-            onStartHr={() => setCurrentView('hr')}
-            onStartTour={() => {
-              setShowGuidedTour(true);
-              setCurrentView('employee');
-            }}
-          />
-        )}
+      {/* Main Responsive Layout: Sidebar on Desktop + Content Area */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Tablet / Desktop Sidebar */}
+        <Sidebar
+          activeTab={activeTab}
+          onSelectTab={(tab) => {
+            setActiveTab(tab);
+            if (tab !== 'packs') setActiveCompilerPack(null);
+          }}
+          currentRole={currentRole}
+          onResetDemo={handleResetDemo}
+        />
 
-        {currentView === 'employee' && (
-          <PhoneFrame
-            isFrameEnabled={isPhoneFrame}
-            onToggleFrame={() => setIsPhoneFrame(!isPhoneFrame)}
-          >
-            <EmployeePortal
-              company={activeCompany}
-              onSubmissionSuccess={handleSubmissionSuccess}
-              onSwitchToHr={() => setCurrentView('hr')}
-              userSubmission={userSubmission}
-              onUpdateSubmission={async (updated) => {
-                setUserSubmission(updated);
-                await dataProvider.saveCandidate(updated);
-                await dataProvider.addAuditLog({
-                  candidateId: updated.id,
-                  candidateName: updated.fullName,
-                  action: 'Correction Resubmitted by Candidate',
-                  details: 'Candidate replaced flagged documents and resubmitted dossier to HR',
-                  performedBy: `Candidate (${updated.fullName})`,
-                  category: 'FORM'
-                });
-                await refreshData();
-              }}
-            />
-          </PhoneFrame>
-        )}
+        {/* Scrollable Content Viewport */}
+        <main className="flex-1 overflow-y-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
+          <div className="max-w-6xl mx-auto w-full">
+            {/* 1. DASHBOARD */}
+            {activeTab === 'dashboard' && (
+              <MobileDashboard
+                currentRole={currentRole}
+                employees={employees}
+                attendance={attendance}
+                payroll={payroll}
+                complianceItems={complianceItems}
+                documents={documents}
+                packs={packs}
+                onNavigate={(tab) => {
+                  setActiveTab(tab);
+                  if (tab !== 'packs') setActiveCompilerPack(null);
+                }}
+                onOpenAddEmployee={() => setShowAddEmployeeModal(true)}
+                onOpenCreatePack={handleCreateNewPack}
+              />
+            )}
 
-        {currentView === 'hr' && (
-          <HrDashboard
-            candidates={candidates}
-            activeCompany={activeCompany}
-            allCompanies={allCompanies}
-            onSelectCompany={handleSelectCompany}
-            onUpdateDocumentStatus={handleUpdateDocumentStatus}
-            onApproveAllDocuments={handleApproveAllDocuments}
-            onAddCandidate={handleAddCandidate}
-            onAddCandidatesBatch={handleAddCandidatesBatch}
-            auditLogs={auditLogs}
-            onOpenEmployeeFlow={() => setCurrentView('employee')}
-          />
-        )}
-      </main>
+            {/* 2. EMPLOYEES DIRECTORY */}
+            {activeTab === 'employees' && (
+              <EmployeeDirectory
+                employees={employees}
+                config={config}
+                onSaveEmployee={(emp) => complianceStore.saveEmployee(emp)}
+              />
+            )}
 
-      {/* Presenter Pitch Notes Drawer */}
-      {showPresenterNotes && (
-        <PresenterNotes
-          currentRole={currentView === 'hr' ? 'hr' : 'employee'}
-          onClose={() => setShowPresenterNotes(false)}
+            {/* 3. ATTENDANCE WORKFLOW */}
+            {activeTab === 'attendance' && (
+              <AttendanceView
+                attendanceRecords={attendance}
+                employees={employees}
+                config={config}
+                onSaveBatch={(records) => complianceStore.saveAttendanceBatch(records)}
+                onApproveSite={(siteId, date, approver) => complianceStore.approveSiteAttendance(siteId, date, approver)}
+              />
+            )}
+
+            {/* 4. COMPLIANCE TRACKER */}
+            {activeTab === 'compliance' && (
+              <ComplianceTracker
+                items={complianceItems}
+                config={config}
+                onSaveItem={(item) => complianceStore.saveComplianceItem(item)}
+              />
+            )}
+
+            {/* 5. MONTHLY COMPLIANCE PACKS (THE HERO FEATURE) */}
+            {activeTab === 'packs' && (
+              activeCompilerPack ? (
+                <CompliancePackCompiler
+                  pack={activeCompilerPack}
+                  config={config}
+                  onSavePack={(pack) => complianceStore.savePack(pack)}
+                  onBackToList={() => setActiveCompilerPack(null)}
+                />
+              ) : (
+                <CompliancePackList
+                  packs={packs}
+                  config={config}
+                  onSelectPack={(pack) => setActiveCompilerPack(pack)}
+                  onCreateNewPack={handleCreateNewPack}
+                />
+              )
+            )}
+
+            {/* 6. PAYROLL WORKSPACE */}
+            {activeTab === 'payroll' && (
+              <PayrollView
+                payrollRecords={payroll}
+                employees={employees}
+                onUpdateStatus={(id, status, reviewer, remarks) => 
+                  complianceStore.updatePayrollStatus(id, status, reviewer, remarks)
+                }
+              />
+            )}
+
+            {/* 7. DOCUMENT CENTRE */}
+            {activeTab === 'documents' && (
+              <DocumentCentre
+                documents={documents}
+                config={config}
+                onSaveDocument={(doc) => complianceStore.saveDocument(doc)}
+              />
+            )}
+
+            {/* 8. DIGITAL KYC ONBOARDING (DEMO LOOP) */}
+            {activeTab === 'kyc_onboarding' && (
+              <div className="py-2">
+                <div className="mb-4 text-center">
+                  <h2 className="text-lg font-bold text-white">Interactive Candidate KYC Onboarding</h2>
+                  <p className="text-xs text-slate-400">Experience how new hires complete their joining formalities via mobile WhatsApp link</p>
+                </div>
+                <PhoneFrame
+                  isFrameEnabled={true}
+                  onToggleFrame={() => {}}
+                >
+                  <EmployeePortal
+                    company={{ id: 'securewave', name: config.companyName, tagline: 'Civil & Labour Contractors', brandColor: '#0d9488' }}
+                    onSubmissionSuccess={(sub) => {
+                      triggerConfetti();
+                      setActiveTab('employees');
+                    }}
+                    onSwitchToHr={() => setActiveTab('dashboard')}
+                    userSubmission={null}
+                    onUpdateSubmission={() => {}}
+                  />
+                </PhoneFrame>
+              </div>
+            )}
+
+            {/* 9. SETTINGS */}
+            {activeTab === 'settings' && (
+              <SystemSettings
+                config={config}
+                onSaveConfig={(cfg) => complianceStore.updateConfig(cfg)}
+                onResetDemo={handleResetDemo}
+              />
+            )}
+          </div>
+        </main>
+      </div>
+
+      {/* Mobile Bottom Navigation Bar */}
+      <BottomNav
+        activeTab={activeTab}
+        onSelectTab={(tab) => {
+          if (tab === 'more') {
+            setShowMoreModal(true);
+          } else {
+            setActiveTab(tab);
+            if (tab !== 'packs') setActiveCompilerPack(null);
+          }
+        }}
+        pendingApprovalsCount={attendance.filter(a => !a.approved).length + payroll.filter(p => p.status === 'PENDING_REVIEW').length}
+      />
+
+      {/* Role Selector Modal */}
+      {showRoleModal && (
+        <RoleSelectorModal
+          currentRole={currentRole}
+          onSelectRole={handleRoleSelect}
+          onClose={() => setShowRoleModal(false)}
         />
       )}
 
-      {/* Guided Tour Modal */}
-      {showGuidedTour && (
-        <GuidedTour
-          onClose={() => setShowGuidedTour(false)}
-          onNavigateRole={(role) => setCurrentView(role)}
-        />
-      )}
-
-      {/* Company Personalization Modal */}
-      {showCompanyModal && (
-        <CompanyModal
-          currentCompany={activeCompany}
-          onSaveCompany={handleSelectCompany}
-          onClose={() => setShowCompanyModal(false)}
+      {/* More Menu Drawer (Mobile) */}
+      {showMoreModal && (
+        <MoreMenuModal
+          onSelectTab={(tab) => {
+            setActiveTab(tab);
+            if (tab !== 'packs') setActiveCompilerPack(null);
+            setShowMoreModal(false);
+          }}
+          onClose={() => setShowMoreModal(false)}
+          onResetDemo={handleResetDemo}
         />
       )}
 
       {/* Simulated Notifications Drawer */}
-      {showNotificationsDrawer && (
+      {showNotifications && (
         <SimulatedNotificationsDrawer
-          notifications={notifications}
-          onClose={() => setShowNotificationsDrawer(false)}
-          onOpenEmployeeFlow={() => setCurrentView('employee')}
+          notifications={simulatedNotifications}
+          onClose={() => setShowNotifications(false)}
+          onOpenEmployeeFlow={() => {
+            setActiveTab('kyc_onboarding');
+            setShowNotifications(false);
+          }}
         />
       )}
 
-      {/* Executive Sales Recap Modal */}
-      {showClosingRecap && (
-        <ClosingRecapModal
-          company={activeCompany}
-          onClose={() => setShowClosingRecap(false)}
-          onResetDemo={handleResetDemo}
+      {/* Add Employee Modal */}
+      {showAddEmployeeModal && (
+        <EmployeeModal
+          config={config}
+          onSave={(emp) => complianceStore.saveEmployee(emp)}
+          onClose={() => setShowAddEmployeeModal(false)}
         />
       )}
     </div>
